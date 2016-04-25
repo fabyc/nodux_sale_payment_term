@@ -34,20 +34,20 @@ class Sale():
         super(Sale, cls).__setup__()
         cls._buttons.update({
                 'wizard_add_term': {
-                    'invisible': Eval('state') != 'draft'
+                    'invisible': ((Eval('state') != 'draft') | (Eval('invoice_state') != 'none')),
                     },
                     
                 })
                 
     @classmethod
-    @ModelView.button_action('nodux_sale_payment.wizard_add_term')
+    @ModelView.button_action('nodux_sale_payment_term.wizard_add_term')
     def wizard_add_term(cls, sales):
         pass
     
 
 class AddTermForm(ModelView):
     'Add Term Form'
-    __name__ = 'nodux_sale_payment.add_payment_term_form'
+    __name__ = 'nodux_sale_payment_term.add_payment_term_form'
     
     verifica_dias = fields.Boolean("Credito por dias", help=u"Seleccione si desea realizar su pago en los dias siguientes", states={
             'invisible': Eval('verifica_pagos', True),
@@ -77,7 +77,6 @@ class AddTermForm(ModelView):
     @fields.depends('dias', 'creditos', 'efectivo', 'cheque', 'verifica_dias', 'valor')
     def on_change_dias(self):
         if self.dias:
-            print "El valor es ", self.valor
             pool = Pool()
             Date = pool.get('ir.date')
             Sale = pool.get('sale.sale')
@@ -189,9 +188,7 @@ class AddTermForm(ModelView):
                 monto_pago = s.valor_nuevo
                 
             if self.pagos:
-                print "Cuando es el monto de pago original ", monto_pago
                 for s in self.creditos:
-                    print "Monto con q se compara ",s.monto
                     if s.monto != monto_pago:
                         cont += 1 
                         monto_disminuir += s.monto  
@@ -215,8 +212,6 @@ class AddTermForm(ModelView):
                         }  
                         res['creditos'].setdefault('add', []).append((0, result))     
                          
-                print "Nuevos valores financiado ",financiado, "pagos ", self.pagos, "monto_disminuir ", monto_disminuir, "tamanio", tam, "cambiados ", cont, "valor nuevo ", monto_a     
-                        
             if self.dias:
                 print "Ingresa al metodo ****"
             if self.creditos:
@@ -230,9 +225,9 @@ class AddTermForm(ModelView):
                  
 class WizardAddTerm(Wizard):
     'Wizard Add Term'
-    __name__ = 'nodux_sale_payment.add_term'
-    start = StateView('nodux_sale_payment.add_payment_term_form',
-        'nodux_sale_payment.add_term_view_form', [
+    __name__ = 'nodux_sale_payment_term.add_term'
+    start = StateView('nodux_sale_payment_term.add_payment_term_form',
+        'nodux_sale_payment_term.add_term_view_form', [
             Button('Cancel', 'end', 'tryton-cancel'),
             Button('Add', 'add_', 'tryton-ok'),
             Button('Imprimir Credito', 'print_', 'tryton-ok'),
@@ -283,7 +278,6 @@ class WizardAddTerm(Wizard):
             m_e = self.start.efectivo
         else:
             m_e = Decimal(0.0)
-        print "Valores que se pagaran" ,m_ch, m_e    
         sale.payment_amount = m_ch + m_e
         sale.save()
         
@@ -302,6 +296,7 @@ class WizardAddTerm(Wizard):
         Sale.workflow_to_end([sale])
         
         return 'end'
+        
 class Payment_Term(ModelView):
     'Payment Term Line'
     __name__ = 'sale_payment.payment'
