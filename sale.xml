@@ -6,18 +6,17 @@ copyright notices and license terms. -->
     <data>
         <record model="ir.action.wizard" id="wizard_add_term">
             <field name="name">Agregar Credito</field>
-            <field name="wiz_name">nodux_sale_payment.add_term</field>
+            <field name="wiz_name">nodux_sale_payment_term.add_term</field>
         </record>
         <record model="ir.ui.view" id="add_term_view_form">
-            <field name="model">nodux_sale_payment.add_payment_term_form</field>
+            <field name="model">nodux_sale_payment_term.add_payment_term_form</field>
             <field name="type">form</field>
             <field name="name">add_term_form</field>
         </record>
         <record model="ir.ui.view" id="sale_pos_view_form">
             <field name="model">sale.sale</field>
             <field name="type">form</field>
-            <field name="inherit"
-                ref="sale_pos.sale_pos_view_form"/>
+            <field name="inherit" ref="sale_pos.sale_pos_view_form"/>
             <field name="name">sale_pos_form</field>
         </record>
         
