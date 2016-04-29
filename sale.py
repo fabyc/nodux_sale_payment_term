@@ -49,7 +49,7 @@ class AddTermForm(ModelView):
     'Add Term Form'
     __name__ = 'nodux_sale_payment_term.add_payment_term_form'
     
-     verifica_dias = fields.Boolean("Credito por dias", help=u"Seleccione si desea realizar su pago en los dias siguientes", states={
+    verifica_dias = fields.Boolean("Credito por dias", help=u"Seleccione si desea realizar su pago en los dias siguientes", states={
             'invisible': Eval('verifica_pagos', True),
             })
     verifica_pagos = fields.Boolean("Credito por pagos", help=u"Seleccione si desea realizar sus pagos mensuales", states={
@@ -76,6 +76,8 @@ class AddTermForm(ModelView):
     
     @fields.depends('dias', 'creditos', 'efectivo', 'cheque', 'verifica_dias', 'valor')
     def on_change_dias(self):
+        res = {}
+        res['creditos'] = {}
         if self.dias:
             pool = Pool()
             Date = pool.get('ir.date')
@@ -86,8 +88,7 @@ class AddTermForm(ModelView):
             sale = Sale(active_id)
             print "El active_id", active_id
             """
-            res = {}
-            res['creditos'] = {}
+            
             if self.creditos:
                 res['creditos']['remove'] = [x['id'] for x in self.creditos]
                 
@@ -110,11 +111,17 @@ class AddTermForm(ModelView):
             }
             
             res['creditos'].setdefault('add', []).append((0, result))
-            print res
-            return res          
+        else:
+            if self.creditos:
+                res['creditos']['remove'] = [x['id'] for x in self.creditos]
+            
+        return res          
     
     @fields.depends('pagos', 'creditos', 'efectivo', 'cheque', 'verifica_pagos', 'valor', 'dias_pagos')
     def on_change_pagos(self):
+        res = {}
+        res['creditos'] = {}
+            
         if self.pagos:
             pool = Pool()
             Date = pool.get('ir.date')
@@ -138,8 +145,6 @@ class AddTermForm(ModelView):
             monto = monto_parcial / self.pagos
             pagos = int(self.pagos)
             
-            res = {}
-            res['creditos'] = {}
             if self.creditos:
                 res['creditos']['remove'] = [x['id'] for x in self.creditos]
             
@@ -169,9 +174,10 @@ class AddTermForm(ModelView):
                         'valor_nuevo': monto
                     }
                     res['creditos'].setdefault('add', []).append((0, result))
-                    
-            print res
-            return res
+        else:
+            if self.creditos:
+                res['creditos']['remove'] = [x['id'] for x in self.creditos]                   
+        return res
             
     @fields.depends('pagos', 'creditos', 'efectivo', 'cheque', 'verifica_pagos', 'valor', 'dias_pagos', 'dias', 'verifica_dias')
     def on_change_creditos(self):
@@ -212,8 +218,6 @@ class AddTermForm(ModelView):
                         }  
                         res['creditos'].setdefault('add', []).append((0, result))     
                          
-            if self.dias:
-                print "Ingresa al metodo ****"
             if self.creditos:
                 res['creditos']['remove'] = [x['id'] for x in self.creditos]
                     
@@ -221,7 +225,7 @@ class AddTermForm(ModelView):
             
     @staticmethod
     def default_dias_pagos():
-        return Decimal(30.00)
+        return int(30)
                  
 class WizardAddTerm(Wizard):
     'Wizard Add Term'
@@ -286,7 +290,7 @@ class WizardAddTerm(Wizard):
             payment = StatementLine(
                     statement=statements[0].id,
                     date=Date.today(),
-                    amount=(m_ch + m_e),
+                    amount=valor,
                     party=sale.party.id,
                     account=account,
                     description=sale.reference,
