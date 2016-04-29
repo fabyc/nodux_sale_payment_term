@@ -49,16 +49,16 @@ class AddTermForm(ModelView):
     'Add Term Form'
     __name__ = 'nodux_sale_payment_term.add_payment_term_form'
     
-    verifica_dias = fields.Boolean("Credito por dias", help=u"Seleccione si desea realizar su pago en los dias siguientes", states={
+     verifica_dias = fields.Boolean("Credito por dias", help=u"Seleccione si desea realizar su pago en los dias siguientes", states={
             'invisible': Eval('verifica_pagos', True),
             })
     verifica_pagos = fields.Boolean("Credito por pagos", help=u"Seleccione si desea realizar sus pagos mensuales", states={
             'invisible': Eval('verifica_dias', True),
             })
-    dias = fields.Numeric("Numero de dias", help=u"Ingrese el numero de dias en los que se realizara el pago", states={
+    dias = fields.Integer("Numero de dias", help=u"Ingrese el numero de dias en los que se realizara el pago", states={
             'invisible': ~Eval('verifica_dias', False),
             })
-    pagos = fields.Numeric("Numero de pagos", help=u"Ingrese el numero de pagos en lo que realizara el pago total", states={
+    pagos = fields.Integer("Numero de pagos", help=u"Ingrese el numero de pagos en lo que realizara el pago total", states={
             'invisible': ~Eval('verifica_pagos', False),
             })
     creditos = fields.One2Many('sale_payment.payment', 'sale',
@@ -68,7 +68,7 @@ class AddTermForm(ModelView):
     nro= fields.Char('Numero de cheque', size=20)
     banco = fields.Many2One('bank', 'Banco')
     valor = fields.Numeric('Total a pagar')
-    dias_pagos = fields.Numeric("Numero de dias para pagos", help=u"Ingrese el numero de dias a considerar para realizar el pago", states={
+    dias_pagos = fields.Integer("Numero de dias para pagos", help=u"Ingrese el numero de dias a considerar para realizar el pago", states={
             'invisible': ~Eval('verifica_pagos', False),
             })
     titular = fields.Char('Titular de la cuenta')
