@@ -126,12 +126,7 @@ class AddTermForm(ModelView):
             pool = Pool()
             Date = pool.get('ir.date')
             Sale = pool.get('sale.sale')
-            """
-            active_id = Transaction().context.get('active_id', False)
-            sale = Sale(active_id)
-            print "El active_id", active_id
-            """
-            
+           
             if self.efectivo:
                 monto_efectivo = self.efectivo
             else:
@@ -142,43 +137,102 @@ class AddTermForm(ModelView):
                 monto_cheque = Decimal(0.0)
             #monto_parcial = monto_efectivo + monto_cheque
             monto_parcial = self.valor -(monto_efectivo + monto_cheque)
-            monto = monto_parcial / self.pagos
             pagos = int(self.pagos)
+            monto = (monto_parcial / pagos)
+            monto = round(monto, 2)
+            monto = str(monto)
+            monto = Decimal(monto)
+            comprobacion = monto * self.pagos
+            restante = comprobacion - monto_parcial
             
             if self.creditos:
                 res['creditos']['remove'] = [x['id'] for x in self.creditos]
             
-            fecha_pagos = datetime.now()
-            for p in range(pagos):
-                
-                if self.dias_pagos == 30:
-                    monto = monto
-                    fecha = datetime.now() + relativedelta(months=(p+1))
-                    result = {
-                        'fecha': fecha,
-                        'monto': monto,
-                        'financiar':monto_parcial,
-                        'valor_nuevo': monto
-                    }
-                    res['creditos'].setdefault('add', []).append((0, result))
-                elif self.dias_pagos == None:
-                    self.raise_user_error("Debe ingresar Numero de dias para pagos")
-                else :
-                    monto = monto
-                    dias = timedelta(days=int(self.dias_pagos))
-                    fecha_pagos = fecha_pagos + dias
-                    result = {
-                        'fecha': fecha_pagos,
-                        'monto': monto,
-                        'financiar':monto_parcial,
-                        'valor_nuevo': monto
-                    }
-                    res['creditos'].setdefault('add', []).append((0, result))
+            if comprobacion == monto_parcial:
+                fecha_pagos = datetime.now()
+                for p in range(pagos):
+                    
+                    if self.dias_pagos == 30:
+                        monto = monto
+                        fecha = datetime.now() + relativedelta(months=(p+1))
+                        result = {
+                            'fecha': fecha,
+                            'monto': monto,
+                            'financiar':monto_parcial,
+                            'valor_nuevo': monto
+                        }
+                        res['creditos'].setdefault('add', []).append((0, result))
+                    elif self.dias_pagos == None:
+                        self.raise_user_error("Debe ingresar Numero de dias para pagos")
+                    else :
+                        monto = monto
+                        dias = timedelta(days=int(self.dias_pagos))
+                        fecha_pagos = fecha_pagos + dias
+                        result = {
+                            'fecha': fecha_pagos,
+                            'monto': monto,
+                            'financiar':monto_parcial,
+                            'valor_nuevo': monto
+                        }
+                        res['creditos'].setdefault('add', []).append((0, result))
+            else:
+                cont = 1
+                fecha_pagos = datetime.now()
+                for p in range(pagos):
+                    if cont == pagos:
+                        if self.dias_pagos == 30:
+                            monto = monto
+                            fecha = datetime.now() + relativedelta(months=(p+1))
+                            result = {
+                                'fecha': fecha,
+                                'monto': monto - restante,
+                                'financiar':monto_parcial,
+                                'valor_nuevo': monto
+                            }
+                            res['creditos'].setdefault('add', []).append((0, result))
+                        elif self.dias_pagos == None:
+                            self.raise_user_error("Debe ingresar Numero de dias para pagos")
+                        else :
+                            monto = monto
+                            dias = timedelta(days=int(self.dias_pagos))
+                            fecha_pagos = fecha_pagos + dias
+                            result = {
+                                'fecha': fecha_pagos,
+                                'monto': monto - restante,
+                                'financiar':monto_parcial,
+                                'valor_nuevo': monto
+                            }
+                            res['creditos'].setdefault('add', []).append((0, result))
+                    else:
+                        if self.dias_pagos == 30:
+                            monto = monto
+                            fecha = datetime.now() + relativedelta(months=(p+1))
+                            result = {
+                                'fecha': fecha,
+                                'monto': monto,
+                                'financiar':monto_parcial,
+                                'valor_nuevo': monto
+                            }
+                            res['creditos'].setdefault('add', []).append((0, result))
+                        elif self.dias_pagos == None:
+                            self.raise_user_error("Debe ingresar Numero de dias para pagos")
+                        else :
+                            monto = monto
+                            dias = timedelta(days=int(self.dias_pagos))
+                            fecha_pagos = fecha_pagos + dias
+                            result = {
+                                'fecha': fecha_pagos,
+                                'monto': monto,
+                                'financiar':monto_parcial,
+                                'valor_nuevo': monto
+                            }
+                            res['creditos'].setdefault('add', []).append((0, result))
+                    cont += 1          
         else:
             if self.creditos:
                 res['creditos']['remove'] = [x['id'] for x in self.creditos]                   
         return res
-    
+        
     @fields.depends('pagos', 'creditos', 'efectivo', 'cheque', 'verifica_pagos', 'valor', 'dias_pagos')
     def on_change_dias_pagos(self):
         res = {}
@@ -234,7 +288,7 @@ class AddTermForm(ModelView):
             if self.creditos:
                 res['creditos']['remove'] = [x['id'] for x in self.creditos]                   
         return res
-                
+        
     @fields.depends('pagos', 'creditos', 'efectivo', 'cheque', 'verifica_pagos', 'valor', 'dias_pagos', 'dias', 'verifica_dias')
     def on_change_creditos(self):
         if self.creditos:
