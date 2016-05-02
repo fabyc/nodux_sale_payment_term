@@ -178,7 +178,63 @@ class AddTermForm(ModelView):
             if self.creditos:
                 res['creditos']['remove'] = [x['id'] for x in self.creditos]                   
         return res
+    
+    @fields.depends('pagos', 'creditos', 'efectivo', 'cheque', 'verifica_pagos', 'valor', 'dias_pagos')
+    def on_change_dias_pagos(self):
+        res = {}
+        res['creditos'] = {}
             
+        if self.dias_pagos:
+            pool = Pool()
+            Date = pool.get('ir.date')
+            Sale = pool.get('sale.sale')
+            
+            if self.creditos:
+                res['creditos']['remove'] = [x['id'] for x in self.creditos]
+                
+            if self.efectivo:
+                monto_efectivo = self.efectivo
+            else:
+                monto_efectivo = Decimal(0.0)
+            if self.cheque:
+                monto_cheque = self.cheque
+            else:
+                monto_cheque = Decimal(0.0)
+            #monto_parcial = monto_efectivo + monto_cheque
+            monto_parcial = self.valor -(monto_efectivo + monto_cheque)
+            if self.pagos:
+                monto = monto_parcial / self.pagos
+                pagos = int(self.pagos)
+            
+                fecha_pagos = datetime.now()
+                for p in range(pagos):
+                    
+                    if self.dias_pagos == 30:
+                        monto = monto
+                        fecha = datetime.now() + relativedelta(months=(p+1))
+                        result = {
+                            'fecha': fecha,
+                            'monto': monto,
+                            'financiar':monto_parcial,
+                            'valor_nuevo': monto
+                        }
+                        res['creditos'].setdefault('add', []).append((0, result))
+                    else :
+                        monto = monto
+                        dias = timedelta(days=int(self.dias_pagos))
+                        fecha_pagos = fecha_pagos + dias
+                        result = {
+                            'fecha': fecha_pagos,
+                            'monto': monto,
+                            'financiar':monto_parcial,
+                            'valor_nuevo': monto
+                        }
+                        res['creditos'].setdefault('add', []).append((0, result))
+        else:
+            if self.creditos:
+                res['creditos']['remove'] = [x['id'] for x in self.creditos]                   
+        return res
+                
     @fields.depends('pagos', 'creditos', 'efectivo', 'cheque', 'verifica_pagos', 'valor', 'dias_pagos', 'dias', 'verifica_dias')
     def on_change_creditos(self):
         if self.creditos:
