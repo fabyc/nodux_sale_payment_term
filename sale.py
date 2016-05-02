@@ -40,7 +40,8 @@ class Sale():
                     },
                     
                 'wizard_sale_payment': {
-                    'readonly': ~Eval('lines', [0])
+                    'readonly': ~Eval('lines', [0]),
+                    'invisible': Eval('invoice_state') != 'none'
                     },
                     
                 })
