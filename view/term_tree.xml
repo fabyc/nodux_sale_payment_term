@@ -5,6 +5,6 @@ the full copyright notices and license terms. -->
 <tree string="Formas de pago" editable="top">
     <field name="fecha" expand="1"/>
     <field name="banco" expand="1"/>
-    <field name="numero_cuenta" expand="1"/>
+    <field name="nro_cuenta" expand="1"/>
     <field name="monto" expand="1"/>
 </tree>

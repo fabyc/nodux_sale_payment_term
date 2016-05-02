@@ -26,6 +26,14 @@ copyright notices and license terms. -->
             <field name="name">term_tree</field>
         </record> 
         
+        <record model="ir.action.report" id="report_add_term">
+            <field name="name">Reporte de credito</field>
+            <field name="model">sale.sale</field>
+            <field name="report_name">nodux_sale_payment_term.report_add_term</field>
+            <field name="report">nodux_sale_payment_term/sale_credit.odt</field>
+            <field name="style"></field>
+        </record>
+        
     </data>
 </tryton>
 

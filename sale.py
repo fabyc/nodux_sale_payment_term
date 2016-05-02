@@ -13,7 +13,7 @@ from datetime import datetime,timedelta
 from dateutil.relativedelta import relativedelta
 from trytond.report import Report
 
-__all__ = [ 'Sale', 'AddTermForm', 'WizardAddTerm', 'Payment_Term']
+__all__ = [ 'Sale', 'AddTermForm', 'WizardAddTerm', 'Payment_Term', 'ReportAddTerm']
 __metaclass__ = PoolMeta
 _ZERO = Decimal('0.0')
 PRODUCT_TYPES = ['goods']
@@ -36,7 +36,7 @@ class Sale():
         cls._buttons.update({
                 'wizard_add_term': {
                     'invisible': ((Eval('state') != 'draft') | (Eval('invoice_state') != 'none')),
-                    'readonly': ~Eval('lines', [0]) 
+                    'readonly': ~Eval('lines', [0])
                     },
                     
                 'wizard_sale_payment': {
@@ -525,4 +525,32 @@ class Payment_Term(ModelView):
     financiar = fields.Numeric("Total a financiar")
     valor_nuevo = fields.Numeric("Valor nuevo")
     
+class ReportAddTerm(Report):
+    __name__ = 'nodux_sale_payment_term.report_add_term'
 
+    @classmethod
+    def parse(cls, report, records, data, localcontext):
+        pool = Pool()
+        User = Pool().get('res.user')
+        user = User(Transaction().user)
+        sale = records[0]
+        
+        Invoice = pool.get('account.invoice')
+        Sale = pool.get('sale.sale')
+        sale = records[0]
+        invoices = Invoice.search([('description', '=', sale.reference), ('description', '!=', None)])
+        
+        if invoices:
+            for i in invoices:
+                invoice = i
+                invoice_e = 'true'
+        else:
+            invoice_e = 'false'
+            invoice = sale
+        localcontext['user'] = user
+        localcontext['company'] = user.company
+        localcontext['invoice'] = invoice
+        localcontext['invoice_e'] = invoice_e
+        
+        return super(ReportAddTerm, cls).parse(report, records, data,
+                localcontext=localcontext)     
