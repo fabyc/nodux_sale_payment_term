@@ -7,10 +7,11 @@ from trytond.model import ModelView, fields, ModelSQL
 from trytond.pool import PoolMeta, Pool
 from trytond.pyson import Bool, Eval, Not
 from trytond.transaction import Transaction
-from trytond.wizard import Wizard, StateView, StateTransition, Button
+from trytond.wizard import Wizard, StateView, StateTransition, Button, StateAction
 from trytond import backend
 from datetime import datetime,timedelta
 from dateutil.relativedelta import relativedelta
+from trytond.report import Report
 
 __all__ = [ 'Sale', 'AddTermForm', 'WizardAddTerm', 'Payment_Term']
 __metaclass__ = PoolMeta
@@ -35,6 +36,11 @@ class Sale():
         cls._buttons.update({
                 'wizard_add_term': {
                     'invisible': ((Eval('state') != 'draft') | (Eval('invoice_state') != 'none')),
+                    'readonly': ~Eval('lines', [0]) 
+                    },
+                    
+                'wizard_sale_payment': {
+                    'readonly': ~Eval('lines', [0])
                     },
                     
                 })
@@ -82,7 +88,6 @@ class AddTermForm(ModelView):
             pool = Pool()
             Date = pool.get('ir.date')
             Sale = pool.get('sale.sale')
-            
             """
             active_id = Transaction().context.get('active_id', False)
             sale = Sale(active_id)
@@ -105,9 +110,19 @@ class AddTermForm(ModelView):
             dias = timedelta(days=int(self.dias))
             monto = monto_parcial
             fecha = datetime.now() + dias
+            for c in self.creditos:
+                if c.banco:
+                    banco = c.banco.id
+                if c.nro_cuenta:
+                    nro_cuenta = c.nro_cuenta
+                
             result = {
                 'fecha': fecha,
                 'monto': monto,
+                'financiar':None,
+                'valor_nuevo': None,
+                'banco': None,
+                'nro_cuenta': None,
             }
             
             res['creditos'].setdefault('add', []).append((0, result))
@@ -121,7 +136,8 @@ class AddTermForm(ModelView):
     def on_change_pagos(self):
         res = {}
         res['creditos'] = {}
-            
+        banco = None
+        nro_cuenta = None     
         if self.pagos:
             pool = Pool()
             Date = pool.get('ir.date')
@@ -159,7 +175,9 @@ class AddTermForm(ModelView):
                             'fecha': fecha,
                             'monto': monto,
                             'financiar':monto_parcial,
-                            'valor_nuevo': monto
+                            'valor_nuevo': monto,
+                            'banco': banco,
+                            'nro_cuenta':nro_cuenta,
                         }
                         res['creditos'].setdefault('add', []).append((0, result))
                     elif self.dias_pagos == None:
@@ -172,7 +190,9 @@ class AddTermForm(ModelView):
                             'fecha': fecha_pagos,
                             'monto': monto,
                             'financiar':monto_parcial,
-                            'valor_nuevo': monto
+                            'valor_nuevo': monto,
+                            'banco': banco,
+                            'nro_cuenta':nro_cuenta,
                         }
                         res['creditos'].setdefault('add', []).append((0, result))
             else:
@@ -187,7 +207,9 @@ class AddTermForm(ModelView):
                                 'fecha': fecha,
                                 'monto': monto - restante,
                                 'financiar':monto_parcial,
-                                'valor_nuevo': monto
+                                'valor_nuevo': monto,
+                                'banco': banco,
+                                'nro_cuenta':nro_cuenta,
                             }
                             res['creditos'].setdefault('add', []).append((0, result))
                         elif self.dias_pagos == None:
@@ -200,7 +222,9 @@ class AddTermForm(ModelView):
                                 'fecha': fecha_pagos,
                                 'monto': monto - restante,
                                 'financiar':monto_parcial,
-                                'valor_nuevo': monto
+                                'valor_nuevo': monto,
+                                'banco': banco,
+                                'nro_cuenta':nro_cuenta,
                             }
                             res['creditos'].setdefault('add', []).append((0, result))
                     else:
@@ -211,7 +235,9 @@ class AddTermForm(ModelView):
                                 'fecha': fecha,
                                 'monto': monto,
                                 'financiar':monto_parcial,
-                                'valor_nuevo': monto
+                                'valor_nuevo': monto,
+                                'banco': banco,
+                                'nro_cuenta':nro_cuenta,
                             }
                             res['creditos'].setdefault('add', []).append((0, result))
                         elif self.dias_pagos == None:
@@ -224,7 +250,9 @@ class AddTermForm(ModelView):
                                 'fecha': fecha_pagos,
                                 'monto': monto,
                                 'financiar':monto_parcial,
-                                'valor_nuevo': monto
+                                'valor_nuevo': monto,
+                                'banco': banco,
+                                'nro_cuenta':nro_cuenta,
                             }
                             res['creditos'].setdefault('add', []).append((0, result))
                     cont += 1          
@@ -237,7 +265,8 @@ class AddTermForm(ModelView):
     def on_change_dias_pagos(self):
         res = {}
         res['creditos'] = {}
-            
+        banco = None
+        nro_cuenta = None
         if self.dias_pagos:
             pool = Pool()
             Date = pool.get('ir.date')
@@ -270,7 +299,9 @@ class AddTermForm(ModelView):
                             'fecha': fecha,
                             'monto': monto,
                             'financiar':monto_parcial,
-                            'valor_nuevo': monto
+                            'valor_nuevo': monto,
+                            'banco': banco,
+                            'nro_cuenta':nro_cuenta,
                         }
                         res['creditos'].setdefault('add', []).append((0, result))
                     else :
@@ -281,7 +312,9 @@ class AddTermForm(ModelView):
                             'fecha': fecha_pagos,
                             'monto': monto,
                             'financiar':monto_parcial,
-                            'valor_nuevo': monto
+                            'valor_nuevo': monto,
+                            'banco': banco,
+                            'nro_cuenta':nro_cuenta,
                         }
                         res['creditos'].setdefault('add', []).append((0, result))
         else:
@@ -299,9 +332,10 @@ class AddTermForm(ModelView):
             cont = 0
             tam = len(self.creditos)
             for s in self.creditos:
-                financiado = s.financiar
-                suma += s.monto
-                monto_pago = s.valor_nuevo
+                if s.financiar:
+                    financiado = s.financiar
+                    suma += s.monto
+                    monto_pago = s.valor_nuevo
                 
             if self.pagos:
                 for s in self.creditos:
@@ -311,12 +345,24 @@ class AddTermForm(ModelView):
                 monto_a = (financiado - monto_disminuir) / (tam-cont) 
                  
                 for s in self.creditos:
+                    if s.banco:
+                        banco = s.banco.id
+                    else:
+                        banco = None
+                        
+                    if s.nro_cuenta:
+                        nro_cuenta = s.nro_cuenta
+                    else:
+                        nro_cuenta = None
+                    print "El banco y la cuenta ", banco, nro_cuenta
                     if s.monto != monto_pago:
                         result = {
                         'fecha': s.fecha,
                         'monto': s.monto,
                         'financiar': s.financiar,
-                        'valor_nuevo':monto_a
+                        'valor_nuevo':monto_a,
+                        'banco': banco,
+                        'nro_cuenta': nro_cuenta,
                         } 
                         res['creditos'].setdefault('add', []).append((0, result))   
                     else:   
@@ -324,7 +370,9 @@ class AddTermForm(ModelView):
                         'fecha': s.fecha,
                         'monto': monto_a,
                         'financiar': s.financiar,
-                        'valor_nuevo':monto_a
+                        'valor_nuevo':monto_a,
+                        'banco': banco,
+                        'nro_cuenta':nro_cuenta,
                         }  
                         res['creditos'].setdefault('add', []).append((0, result))     
                          
@@ -344,10 +392,10 @@ class WizardAddTerm(Wizard):
         'nodux_sale_payment_term.add_term_view_form', [
             Button('Cancel', 'end', 'tryton-cancel'),
             Button('Add', 'add_', 'tryton-ok'),
-            Button('Imprimir Credito', 'print_', 'tryton-ok'),
+            Button('Imprimir Credito', 'print_', 'tryton-print'),
         ])
     add_ = StateTransition()
-    add_ = StateTransition()
+    print_ = StateAction('nodux_sale_payment_term.report_add_term')
     
     def default_start(self, fields):
         pool = Pool()
@@ -366,7 +414,6 @@ class WizardAddTerm(Wizard):
             return default
         
     def transition_add_(self):
-        print "Esto es lo que recibe **", self.start.creditos #aqui estan todas las lineas de credito que seran para los asientos contables
         pool = Pool()
         Sale = pool.get('sale.sale')
         active_id = Transaction().context.get('active_id', False)
@@ -393,8 +440,54 @@ class WizardAddTerm(Wizard):
         else:
             m_e = Decimal(0.0)
         sale.payment_amount = m_ch + m_e
-        sale.save()
         
+        Term = Pool().get('account.invoice.payment_term')
+        term = Term()
+        PaymentTermLine = Pool().get('account.invoice.payment_term.line')
+        
+        if self.start.creditos :
+            
+            if self.start.verifica_dias == True:
+                dias = self.start.dias
+                lines= []
+                term_line = PaymentTermLine(type='remainder', days=dias, divisor=Decimal(0.0))
+                lines.append(term_line)
+                term.name = 'Credito personalizado dias'
+                term.lines = lines
+                term.save()
+                       
+            if self.start.verifica_pagos == True :
+                pagos = self.start.pagos
+                dias_pagos = self.start.dias_pagos
+                monto_inicial = self.start.valor
+                lines= []
+                cont = 1
+                sequence = pagos
+                for credito in self.start.creditos:
+                    fecha = credito.fecha
+                    monto = credito.monto
+                    dias = str(fecha - datetime.now()).split('days')
+                    dias[0].split(' ')
+                    dias = dias[0]
+                    percentage = Decimal(str(round((monto * 100)/monto_inicial, 8)))
+                    divisor = Decimal(str(round(100/percentage, 8)))
+                    
+                    if cont != pagos:
+                        term_line = PaymentTermLine(type='percent_on_total', days=dias, percentage=percentage, divisor= divisor)
+                        lines.append(term_line)
+                    
+                    if cont == pagos:
+                        term_line = PaymentTermLine(type='remainder', days=dias, divisor=Decimal(0.0))
+                        lines.append(term_line)
+                    cont += 1
+                term.name = 'Credito personalizado pagos'
+                term.lines = lines
+                term.save()
+                
+                
+        
+        sale.payment_term = term
+        sale.save()
         valor = m_ch + m_e
         if valor != 0:
             payment = StatementLine(
@@ -408,8 +501,17 @@ class WizardAddTerm(Wizard):
                     )
             payment.save()
         Sale.workflow_to_end([sale])
+        return 'start'
         
+    def transition_print_(self):
         return 'end'
+
+    def do_print_(self, action):
+        data = {}
+        data['id'] = Transaction().context['active_ids'].pop()
+        data['ids'] = [data['id']]
+        return action, data
+          
         
 class Payment_Term(ModelView):
     'Payment Term Line'
@@ -419,6 +521,8 @@ class Payment_Term(ModelView):
     fecha = fields.Date('Fecha de pago')
     monto = fields.Numeric("Valor a pagar")
     banco = fields.Many2One('bank', 'Banco')
-    numero_cuenta = fields.Many2One('bank.account', 'Numero de Cuenta')
+    nro_cuenta = fields.Char('Numero de Cuenta')
     financiar = fields.Numeric("Total a financiar")
     valor_nuevo = fields.Numeric("Valor nuevo")
+    
+
