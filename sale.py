@@ -395,9 +395,9 @@ class AddTermForm(ModelView):
 
     @fields.depends('pagos', 'creditos', 'efectivo', 'cheque', 'verifica_pagos', 'valor', 'dias_pagos', 'dias', 'verifica_dias')
     def on_change_creditos(self):
-
+        res = {}
         if self.creditos:
-            res = {}
+
             res['creditos'] = {}
             suma = Decimal(0.0)
             suma_iguales = Decimal(0.0)
@@ -488,7 +488,7 @@ class AddTermForm(ModelView):
                 for s in self.creditos:
                     if (s.fecha != None) and (s.monto != None):
                         res['creditos']['remove'] = [x['id'] for x in self.creditos]
-            return res
+        return res
 
     @staticmethod
     def default_dias_pagos():
