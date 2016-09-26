@@ -6,5 +6,7 @@ the full copyright notices and license terms. -->
     <field name="fecha" expand="1"/>
     <field name="banco" expand="1"/>
     <field name="nro_cuenta" expand="1"/>
+    <field name="nro_document" expand="1"/>
     <field name="monto" expand="1"/>
+    <!--field name="financiar" tree_invisible="1"/-->
 </tree>

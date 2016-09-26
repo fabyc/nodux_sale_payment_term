@@ -7,7 +7,7 @@ The COPYRIGHT file at the top level of this repository contains the full copyrig
     <label name="valor"/>
     <field name="valor"/>
     <newline/>
-    
+
     <separator string="Monto de abono del cliente" colspan="6" id="monto"/>
     <label name="efectivo"/>
     <field name="efectivo"/>
@@ -24,6 +24,8 @@ The COPYRIGHT file at the top level of this repository contains the full copyrig
     <field name="cuenta"/>
     <newline/>
     <separator string="Forma de pago" colspan="4" id="forma"/>
+    <field name="habilitar_credito" invisible="1"/>
+    <newline/>
     <label name="verifica_dias"/>
     <field name="verifica_dias"/>
     <label name="dias"/>
@@ -35,7 +37,7 @@ The COPYRIGHT file at the top level of this repository contains the full copyrig
     <field name="dias_pagos"/>
     <label name="pagos"/>
     <field name="pagos"/>
-    
+
     <newline/>
     <notebook colspan="3">
         <page string="Lineas de Pago" id="pago">
