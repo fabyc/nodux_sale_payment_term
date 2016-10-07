@@ -62,6 +62,8 @@ class AddTermForm(ModelView):
     'Add Term Form'
     __name__ = 'nodux_sale_payment_term.add_payment_term_form'
 
+    valor = fields.Numeric('Total a pagar')
+
     verifica_dias = fields.Boolean("Credito por dias", help=u"Seleccione si desea realizar su pago en los dias siguientes", states={
             'invisible': Eval('verifica_pagos', True),
             })
@@ -74,6 +76,9 @@ class AddTermForm(ModelView):
     pagos = fields.Integer("Numero de pagos", help=u"Ingrese el numero de pagos en lo que realizara el pago total", states={
             'invisible': ~Eval('verifica_pagos', False),
             })
+    dias_pagos = fields.Integer("Numero de dias para pagos", help=u"Ingrese el numero de dias a considerar para realizar el pago", states={
+            'invisible': ~Eval('verifica_pagos', False),
+            })
     creditos = fields.One2Many('sale_payment.payment', 'sale', 'Formas de Pago', states={
         'readonly': ~Eval('habilitar_credito', True),
     })
@@ -81,10 +86,6 @@ class AddTermForm(ModelView):
     cheque = fields.Numeric('Cheque')
     nro= fields.Char('Numero de cheque', size=20)
     banco = fields.Many2One('bank', 'Banco')
-    valor = fields.Numeric('Total a pagar')
-    dias_pagos = fields.Integer("Numero de dias para pagos", help=u"Ingrese el numero de dias a considerar para realizar el pago", states={
-            'invisible': ~Eval('verifica_pagos', False),
-            })
     titular = fields.Char('Titular de la cuenta')
     cuenta = fields.Char('Numero de la cuenta')
     habilitar_credito = fields.Boolean('Habilitar credito')
@@ -320,7 +321,7 @@ class AddTermForm(ModelView):
                             result = {
                                 'fecha': fecha_pagos,
                                 'monto': monto,
-                                'financiar':monto_parcial,
+                                'financiar': monto_parcial,
                                 'valor_nuevo': monto,
                                 'banco': banco,
                                 'nro_cuenta':nro_cuenta,
@@ -542,8 +543,94 @@ class WizardAddTerm(Wizard):
             or self.raise_user_error('party_without_account_receivable',
                 error_args=(sale.party.name,)))
 
+        postdated_lines = None
         if self.start.cheque:
-            m_ch = self.start.cheque
+            if self.start.cheque > Decimal(0.0):
+                Period = pool.get('account.period')
+                Move = pool.get('account.move')
+
+                move_lines = []
+                line_move_ids = []
+                move, = Move.create([{
+                    'period': Period.find(sale.company.id, date=sale.sale_date),
+                    'journal': 1,
+                    'date': sale.sale_date,
+                    'origin': str(sale),
+                    'description': str(sale),
+                }])
+
+                move_lines.append({
+                    'debit': self.start.cheque,
+                    'credit': Decimal(0.0),
+                    'account': self.start.banco.account_expense,
+                    'move': move.id,
+                    'journal': 1,
+                    'period': Period.find(sale.company.id, date=sale.sale_date),
+                })
+
+                move_lines.append({
+                    'description': str(sale),
+                    'debit': Decimal(0.0),
+                    'credit': self.start.cheque,
+                    'account': sale.party.account_receivable.id,
+                    'move': move.id,
+                    'journal': 1,
+                    'period': Period.find(sale.company.id, date=sale.sale_date),
+                    'date': sale.sale_date,
+                    'party': sale.party.id,
+                })
+
+                self.create_move(move_lines, move)
+
+                m_ch = self.start.cheque
+                postdated_lines = []
+
+                if self.start.banco:
+                    pass
+                else:
+                    self.raise_user_error('Ingrese el banco')
+
+                if self.start.nro:
+                    pass
+                else:
+                    self.raise_user_error('Ingrese el numero de cheque')
+
+                if self.start.cuenta:
+                    pass
+                else:
+                    self.raise_user_error('Ingrese el numero de cuenta')
+
+                postdated_lines.append({
+                    'reference': sale,
+                    'name': sale,
+                    'amount': m_ch,
+                    'account': self.start.banco.account_expense,
+                    'date_expire': sale.sale_date,
+                    'date': sale.sale_date,
+                    'num_check' : self.start.nro,
+                    'num_account' : self.start.cuenta,
+                })
+
+
+            pool = Pool()
+            Period = pool.get('account.period')
+            Move = pool.get('account.move')
+            Invoice = pool.get('account.invoice')
+
+            if postdated_lines != None:
+                Postdated = pool.get('account.postdated')
+                postdated = Postdated()
+                for line in postdated_lines:
+                    date = line['date']
+                    postdated.reference = sale
+                    postdated.party = sale.party
+                    postdated.post_check_type = 'receipt'
+                    postdated.journal = 1
+                    postdated.lines = postdated_lines
+                    postdated.state = 'draft'
+                    postdated.date = date
+                    #postdated.save()
+
         else:
             m_ch = Decimal(0.0)
 
@@ -551,7 +638,7 @@ class WizardAddTerm(Wizard):
             m_e = self.start.efectivo
         else:
             m_e = Decimal(0.0)
-        sale.payment_amount = m_ch + m_e
+        sale.payment_amount = m_e
 
         Term = Pool().get('account.invoice.payment_term')
         term = Term()
@@ -571,6 +658,7 @@ class WizardAddTerm(Wizard):
                     cursor.execute('DELETE FROM account_invoice_payment_term_line WHERE payment = %s' % eliminar)
 
                 dias = self.start.dias
+
                 lines= []
                 term_line = PaymentTermLine(payment=term.id, type='remainder', days=dias, divisor=Decimal(0.0))
                 lines.append(term_line)
@@ -689,6 +777,16 @@ class WizardAddTerm(Wizard):
             payment.save()
         Sale.workflow_to_end([sale])
         return 'end'
+
+    def create_move(self, move_lines, move):
+        pool = Pool()
+        Move = pool.get('account.move')
+        MoveLine = pool.get('account.move.line')
+        Invoice = pool.get('account.invoice')
+        created_lines = MoveLine.create(move_lines)
+        Move.post([move])
+
+        return True
 
 class Payment_Term(ModelView):
     'Payment Term Line'
