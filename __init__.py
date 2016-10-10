@@ -3,11 +3,16 @@
 # copyright notices and license terms.
 from trytond.pool import Pool
 from .sale import *
+from .postdated_check import *
+from .account import *
+
 def register():
     Pool.register(
         Sale,
-        AddTermForm, 
+        AddTermForm,
         Payment_Term,
+        AccountPostDateCheck,
+        Configuration,
         module='nodux_sale_payment_term', type_='model')
     Pool.register(
         WizardAddTerm,

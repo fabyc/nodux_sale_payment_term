@@ -7,13 +7,16 @@ The COPYRIGHT file at the top level of this repository contains the full copyrig
     <label name="valor"/>
     <field name="valor"/>
     <newline/>
-
     <separator string="Monto de abono del cliente" colspan="6" id="monto"/>
+    <newline/>
+    <separator colspan="6" id="efectivo"/>
     <label name="efectivo"/>
     <field name="efectivo"/>
     <newline/>
+    <separator colspan="6" id="cheque"/>
     <label name="cheque"/>
     <field name="cheque"/>
+    <newline/>
     <label name="nro"/>
     <field name="nro"/>
     <label name="banco"/>
@@ -22,6 +25,17 @@ The COPYRIGHT file at the top level of this repository contains the full copyrig
     <field name="titular"/>
     <label name="cuenta"/>
     <field name="cuenta"/>
+    <newline/>
+    <separator colspan="6" id="tarjeta"/>
+    <label name="tarjeta"/>
+    <field name="tarjeta"/>
+    <newline/>
+    <label name="no_tarjeta"/>
+    <field name="no_tarjeta"/>
+    <label name="lote"/>
+    <field name="lote"/>
+    <label name="tipo_tarjeta"/>
+    <field name="tipo_tarjeta"/>
     <newline/>
     <separator string="Forma de pago" colspan="4" id="forma"/>
     <field name="habilitar_credito" invisible="1"/>

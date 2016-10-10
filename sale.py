@@ -84,13 +84,33 @@ class AddTermForm(ModelView):
     })
     efectivo = fields.Numeric('Efectivo')
     cheque = fields.Numeric('Cheque')
-    nro= fields.Char('Numero de cheque', size=20)
-    banco = fields.Many2One('bank', 'Banco')
-    titular = fields.Char('Titular de la cuenta')
-    cuenta = fields.Char('Numero de la cuenta')
-    habilitar_credito = fields.Boolean('Habilitar credito')
+    tarjeta = fields.Numeric('Tarjeta')
 
-    @fields.depends('dias', 'creditos', 'efectivo', 'cheque', 'verifica_dias', 'valor')
+    nro= fields.Char('Numero de cheque', size=20, states={
+        'invisible' : ~Eval('cheque', [0])
+    })
+    banco = fields.Many2One('bank', 'Banco',states={
+        'invisible' : ~Eval('cheque', [0])
+    })
+    titular = fields.Char('Titular de la cuenta',states={
+        'invisible' : ~Eval('cheque', [0])
+    })
+    cuenta = fields.Char('Numero de la cuenta',states={
+        'invisible' : ~Eval('cheque', [0])
+    })
+    habilitar_credito = fields.Boolean('Habilitar credito')
+    no_tarjeta = fields.Char('No. de Tarjeta', states={
+        'invisible': ~Eval('tarjeta', [0])
+    })
+    lote = fields.Char('No. de Lote', states= {
+        'invisible' : ~Eval('tarjeta', [0])
+    })
+    tipo_tarjeta = fields.Many2One('sale.card', 'Tarjeta', states={
+        'invisible': ~Eval('tarjeta', [0])
+    })
+
+    @fields.depends('dias', 'creditos', 'efectivo', 'cheque', 'verifica_dias',
+    'valor', 'tarjeta')
     def on_change_dias(self):
         res = {}
         res['creditos'] = {}
@@ -110,7 +130,12 @@ class AddTermForm(ModelView):
                 monto_cheque = self.cheque
             else:
                 monto_cheque = Decimal(0.0)
-            monto_parcial = self.valor -(monto_efectivo + monto_cheque)
+            if self.tarjeta:
+                monto_tarjeta = self.tarjeta
+            else:
+                monto_tarjeta = Decimal(0.0)
+
+            monto_parcial = self.valor -(monto_efectivo + monto_cheque + monto_tarjeta)
 
             dias = timedelta(days=int(self.dias))
             monto = monto_parcial
@@ -137,7 +162,8 @@ class AddTermForm(ModelView):
         res['habilitar_credito'] = True
         return res
 
-    @fields.depends('pagos', 'creditos', 'efectivo', 'cheque', 'verifica_pagos', 'valor', 'dias_pagos')
+    @fields.depends('pagos', 'creditos', 'efectivo', 'cheque', 'verifica_pagos',
+    'valor', 'dias_pagos','tarjeta')
     def on_change_pagos(self):
         res = {}
         res['creditos'] = {}
@@ -156,8 +182,12 @@ class AddTermForm(ModelView):
                 monto_cheque = self.cheque
             else:
                 monto_cheque = Decimal(0.0)
+            if self.tarjeta:
+                monto_tarjeta = self.tarjeta
+            else:
+                monto_tarjeta = Decimal(0.0)
             #monto_parcial = monto_efectivo + monto_cheque
-            monto_parcial = self.valor -(monto_efectivo + monto_cheque)
+            monto_parcial = self.valor -(monto_efectivo + monto_cheque + monto_tarjeta)
             pagos = int(self.pagos)
             monto = (monto_parcial / pagos)
             monto = Decimal(str(round(monto, 2)))
@@ -265,7 +295,8 @@ class AddTermForm(ModelView):
         res['habilitar_credito'] = True
         return res
 
-    @fields.depends('pagos', 'creditos', 'efectivo', 'cheque', 'verifica_pagos', 'valor', 'dias_pagos')
+    @fields.depends('pagos', 'creditos', 'efectivo', 'cheque', 'verifica_pagos',
+    'valor', 'dias_pagos', 'tarjeta')
     def on_change_dias_pagos(self):
         res = {}
         res['creditos'] = {}
@@ -287,8 +318,12 @@ class AddTermForm(ModelView):
                 monto_cheque = self.cheque
             else:
                 monto_cheque = Decimal(0.0)
+            if self.tarjeta:
+                monto_tarjeta = self.tarjeta
+            else:
+                monto_tarjeta = Decimal(0.0)
             #monto_parcial = monto_efectivo + monto_cheque
-            monto_parcial = self.valor -(monto_efectivo + monto_cheque)
+            monto_parcial = self.valor -(monto_efectivo + monto_cheque + monto_tarjeta)
             if self.pagos:
                 monto = monto_parcial / self.pagos
                 pagos = int(self.pagos)
@@ -556,20 +591,27 @@ class WizardAddTerm(Wizard):
                     'journal': 1,
                     'date': sale.sale_date,
                     'origin': str(sale),
-                    'description': str(sale),
+                    'description': str(sale.id),
                 }])
 
+                Configuration = pool.get('account.configuration')
+                if Configuration(1).default_account_check:
+                    account_check = Configuration(1).default_account_check
+                else:
+                    self.raise_user_error('No ha configurado la cuenta por defecto para Cheques. \nDirijase a Financiero-Configuracion-Configuracion Contable')
+
                 move_lines.append({
+                    'description' : str(sale.id),
                     'debit': self.start.cheque,
                     'credit': Decimal(0.0),
-                    'account': self.start.banco.account_expense,
+                    'account': account_check,
                     'move': move.id,
                     'journal': 1,
                     'period': Period.find(sale.company.id, date=sale.sale_date),
                 })
 
                 move_lines.append({
-                    'description': str(sale),
+                    'description': str(sale.id),
                     'debit': Decimal(0.0),
                     'credit': self.start.cheque,
                     'account': sale.party.account_receivable.id,
@@ -584,7 +626,6 @@ class WizardAddTerm(Wizard):
 
                 m_ch = self.start.cheque
                 postdated_lines = []
-
                 if self.start.banco:
                     pass
                 else:
@@ -601,16 +642,15 @@ class WizardAddTerm(Wizard):
                     self.raise_user_error('Ingrese el numero de cuenta')
 
                 postdated_lines.append({
-                    'reference': sale,
-                    'name': sale,
-                    'amount': m_ch,
-                    'account': self.start.banco.account_expense,
+                    'reference': str(sale.id),
+                    'name': str(sale.id),
+                    'amount': Decimal(m_ch),
+                    'account': account_check,
                     'date_expire': sale.sale_date,
                     'date': sale.sale_date,
                     'num_check' : self.start.nro,
                     'num_account' : self.start.cuenta,
                 })
-
 
             pool = Pool()
             Period = pool.get('account.period')
@@ -622,17 +662,113 @@ class WizardAddTerm(Wizard):
                 postdated = Postdated()
                 for line in postdated_lines:
                     date = line['date']
-                    postdated.reference = sale
+                    postdated.postdated_type = 'check'
+                    postdated.reference = str(sale.id)
                     postdated.party = sale.party
                     postdated.post_check_type = 'receipt'
                     postdated.journal = 1
                     postdated.lines = postdated_lines
                     postdated.state = 'draft'
-                    postdated.date = date
-                    #postdated.save()
+                    postdated.date = sale.sale_date
+                    postdated.save()
 
         else:
             m_ch = Decimal(0.0)
+
+        if self.start.tarjeta:
+            if self.start.tarjeta > Decimal(0.0):
+                Period = pool.get('account.period')
+                Move = pool.get('account.move')
+
+                move_lines = []
+                line_move_ids = []
+                move, = Move.create([{
+                    'period': Period.find(sale.company.id, date=sale.sale_date),
+                    'journal': 1,
+                    'date': sale.sale_date,
+                    'origin': str(sale),
+                    'description': str(sale.id),
+                }])
+
+                Configuration = pool.get('account.configuration')
+                if Configuration(1).default_account_card:
+                    account_card = Configuration(1).default_account_card
+                else:
+                    self.raise_user_error('No ha configurado la cuenta por defecto para Cheques. \nDirijase a Financiero-Configuracion-Configuracion Contable')
+
+                move_lines.append({
+                    'description' : str(sale.id),
+                    'debit': self.start.tarjeta,
+                    'credit': Decimal(0.0),
+                    'account': account_card,
+                    'move': move.id,
+                    'journal': 1,
+                    'period': Period.find(sale.company.id, date=sale.sale_date),
+                })
+
+                move_lines.append({
+                    'description': str(sale.id),
+                    'debit': Decimal(0.0),
+                    'credit': self.start.tarjeta,
+                    'account': sale.party.account_receivable.id,
+                    'move': move.id,
+                    'journal': 1,
+                    'period': Period.find(sale.company.id, date=sale.sale_date),
+                    'date': sale.sale_date,
+                    'party': sale.party.id,
+                })
+
+                self.create_move(move_lines, move)
+
+                m_tc = self.start.tarjeta
+                postdated_lines = []
+                if self.start.no_tarjeta:
+                    pass
+                else:
+                    self.raise_user_error('Ingrese el numero de Tarjeta')
+
+                if self.start.tipo_tarjeta:
+                    pass
+                else:
+                    self.raise_user_error('Ingrese la Tarjeta')
+
+                if self.start.lote:
+                    pass
+                else:
+                    self.raise_user_error('Ingrese el no. de lote de la tarjeta')
+
+                postdated_lines.append({
+                    'reference': str(sale.id),
+                    'name': str(sale.id),
+                    'amount': Decimal(m_tc),
+                    'account': account_card,
+                    'date_expire': sale.sale_date,
+                    'date': sale.sale_date,
+                    'num_check' : self.start.no_tarjeta,
+                    'num_account' : self.start.lote,
+                })
+
+            pool = Pool()
+            Period = pool.get('account.period')
+            Move = pool.get('account.move')
+
+            if postdated_lines != None:
+                Postdated = pool.get('account.postdated')
+                postdated = Postdated()
+                for line in postdated_lines:
+                    date = line['date']
+                    postdated_type = 'card'
+                    postdated.reference = str(sale.id)
+                    postdated.party = sale.party
+                    postdated.post_check_type = 'receipt'
+                    postdated.journal = 1
+                    postdated.lines = postdated_lines
+                    postdated.state = 'draft'
+                    postdated.date = sale.sale_date
+                    postdated.save()
+
+        else:
+            m_tc = Decimal(0.0)
 
         if self.start.efectivo:
             m_e = self.start.efectivo
@@ -751,7 +887,7 @@ class WizardAddTerm(Wizard):
 
         sale.payment_term = term
         sale.save()
-        valor = m_ch + m_e
+        valor = m_e
         if valor_conciliar != Decimal(0.0):
             payment_cheque = StatementLine(
                     statement=statements_cheque[0].id,
