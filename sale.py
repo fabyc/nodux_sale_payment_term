@@ -578,22 +578,22 @@ class WizardAddTerm(Wizard):
             or self.raise_user_error('party_without_account_receivable',
                 error_args=(sale.party.name,)))
 
+        Period = pool.get('account.period')
+        Move = pool.get('account.move')
+
+        move_lines = []
+        line_move_ids = []
+        move, = Move.create([{
+            'period': Period.find(sale.company.id, date=sale.sale_date),
+            'journal': 1,
+            'date': sale.sale_date,
+            'origin': str(sale),
+            'description': str(sale.id),
+        }])
+
         postdated_lines = None
         if self.start.cheque:
             if self.start.cheque > Decimal(0.0):
-                Period = pool.get('account.period')
-                Move = pool.get('account.move')
-
-                move_lines = []
-                line_move_ids = []
-                move, = Move.create([{
-                    'period': Period.find(sale.company.id, date=sale.sale_date),
-                    'journal': 1,
-                    'date': sale.sale_date,
-                    'origin': str(sale),
-                    'description': str(sale.id),
-                }])
-
                 Configuration = pool.get('account.configuration')
                 if Configuration(1).default_account_check:
                     account_check = Configuration(1).default_account_check
@@ -609,20 +609,6 @@ class WizardAddTerm(Wizard):
                     'journal': 1,
                     'period': Period.find(sale.company.id, date=sale.sale_date),
                 })
-
-                move_lines.append({
-                    'description': str(sale.id),
-                    'debit': Decimal(0.0),
-                    'credit': self.start.cheque,
-                    'account': sale.party.account_receivable.id,
-                    'move': move.id,
-                    'journal': 1,
-                    'period': Period.find(sale.company.id, date=sale.sale_date),
-                    'date': sale.sale_date,
-                    'party': sale.party.id,
-                })
-
-                self.create_move(move_lines, move)
 
                 m_ch = self.start.cheque
                 postdated_lines = []
@@ -671,24 +657,11 @@ class WizardAddTerm(Wizard):
                     postdated.state = 'draft'
                     postdated.date = sale.sale_date
                     postdated.save()
-
         else:
             m_ch = Decimal(0.0)
 
         if self.start.tarjeta:
             if self.start.tarjeta > Decimal(0.0):
-                Period = pool.get('account.period')
-                Move = pool.get('account.move')
-
-                move_lines = []
-                line_move_ids = []
-                move, = Move.create([{
-                    'period': Period.find(sale.company.id, date=sale.sale_date),
-                    'journal': 1,
-                    'date': sale.sale_date,
-                    'origin': str(sale),
-                    'description': str(sale.id),
-                }])
 
                 Configuration = pool.get('account.configuration')
                 if Configuration(1).default_account_card:
@@ -705,21 +678,6 @@ class WizardAddTerm(Wizard):
                     'journal': 1,
                     'period': Period.find(sale.company.id, date=sale.sale_date),
                 })
-
-                move_lines.append({
-                    'description': str(sale.id),
-                    'debit': Decimal(0.0),
-                    'credit': self.start.tarjeta,
-                    'account': sale.party.account_receivable.id,
-                    'move': move.id,
-                    'journal': 1,
-                    'period': Period.find(sale.company.id, date=sale.sale_date),
-                    'date': sale.sale_date,
-                    'party': sale.party.id,
-                })
-
-                self.create_move(move_lines, move)
-
                 m_tc = self.start.tarjeta
                 postdated_lines = []
                 if self.start.no_tarjeta:
@@ -748,16 +706,12 @@ class WizardAddTerm(Wizard):
                     'num_account' : self.start.lote,
                 })
 
-            pool = Pool()
-            Period = pool.get('account.period')
-            Move = pool.get('account.move')
-
             if postdated_lines != None:
                 Postdated = pool.get('account.postdated')
                 postdated = Postdated()
                 for line in postdated_lines:
                     date = line['date']
-                    postdated_type = 'card'
+                    postdated.postdated_type = 'card'
                     postdated.reference = str(sale.id)
                     postdated.party = sale.party
                     postdated.post_check_type = 'receipt'
@@ -769,6 +723,21 @@ class WizardAddTerm(Wizard):
 
         else:
             m_tc = Decimal(0.0)
+
+        if (m_tc + m_ch) > Decimal(0.0):
+            move_lines.append({
+                'description': str(sale.id),
+                'debit': Decimal(0.0),
+                'credit': m_tc + m_ch,
+                'account': sale.party.account_receivable.id,
+                'move': move.id,
+                'journal': 1,
+                'period': Period.find(sale.company.id, date=sale.sale_date),
+                'date': sale.sale_date,
+                'party': sale.party.id,
+            })
+        print "Las lineas del asiento", move, move_lines
+        self.create_move(move_lines, move)
 
         if self.start.efectivo:
             m_e = self.start.efectivo
