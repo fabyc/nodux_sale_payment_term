@@ -52,11 +52,23 @@ class Line:
 
             moves_payment = Move.search([('description', '=', self.description)])
 
-            postdated = Postdated.search([('reference', '=', self.id), ('state', '=', 'posted')])
+
+            postdateds = Move.search([('description', '=', self.id)])
+
 
             lines_advanced = []
             account = self.party.account_receivable
             amount2 = Decimal(0.0)
+            amount3 = Decimal(0.0)
+
+            for postdated in postdateds:
+                if not postdated:
+                    continue
+                for line in postdated.lines:
+                    if (not line.reconciliation and line.account.id == account.id):
+                        lines_advanced.append(line)
+                        amount3 += line.debit - line.credit
+
             for move_payment in moves_payment:
                 if not move_payment:
                     continue
@@ -83,7 +95,9 @@ class Line:
             if lines_advanced:
                 if amount2 < 0:
                     amount2 = Decimal(amount2*-1)
-                if (reconcile_lines[1] - amount2) == Decimal('0.0'):
+                if amount3 < 0:
+                    amount3 = Decimal(amount3*-1)
+                if (reconcile_lines[1] - (amount2 + amount3)) == Decimal('0.0'):
                     lines = reconcile_lines[0] + [move_line] + lines_advanced
                     MoveLine.reconcile(lines)
             else:

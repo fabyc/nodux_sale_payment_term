@@ -583,13 +583,14 @@ class WizardAddTerm(Wizard):
 
         move_lines = []
         line_move_ids = []
-        move, = Move.create([{
-            'period': Period.find(sale.company.id, date=sale.sale_date),
-            'journal': 1,
-            'date': sale.sale_date,
-            'origin': str(sale),
-            'description': str(sale.id),
-        }])
+        if self.start.cheque:
+            move, = Move.create([{
+                'period': Period.find(sale.company.id, date=sale.sale_date),
+                'journal': 1,
+                'date': sale.sale_date,
+                'origin': str(sale),
+                'description': str(sale.id),
+            }])
 
         postdated_lines = None
         if self.start.cheque:
@@ -667,7 +668,7 @@ class WizardAddTerm(Wizard):
                 if Configuration(1).default_account_card:
                     account_card = Configuration(1).default_account_card
                 else:
-                    self.raise_user_error('No ha configurado la cuenta por defecto para Cheques. \nDirijase a Financiero-Configuracion-Configuracion Contable')
+                    self.raise_user_error('No ha configurado la cuenta por defecto para Tarjetas. \nDirijase a Financiero-Configuracion-Configuracion Contable')
 
                 move_lines.append({
                     'description' : str(sale.id),
@@ -736,8 +737,7 @@ class WizardAddTerm(Wizard):
                 'date': sale.sale_date,
                 'party': sale.party.id,
             })
-        print "Las lineas del asiento", move, move_lines
-        self.create_move(move_lines, move)
+            self.create_move(move_lines, move)
 
         if self.start.efectivo:
             m_e = self.start.efectivo

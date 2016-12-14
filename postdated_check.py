@@ -48,10 +48,14 @@ class AccountPostDateCheck(ModelSQL, ModelView):
         Invoice = pool.get('account.invoice')
 
         reconcile_lines = []
-
+        sale = None
+        
         for line in self.lines:
-            voucher = Voucher.search([('number', '=', line.name)])
-            sale = Sale.search([('id', '=', line.name)])
+            voucher = Voucher.search([('number', '=', line.name), ('voucher_type', '=', 'receipt')])
+            if '-' in line.name:
+                pass
+            else:
+                sale = Sale.search([('id', '=', line.name)])
 
             if voucher:
                 for v in voucher:
