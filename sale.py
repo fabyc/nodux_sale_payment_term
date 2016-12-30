@@ -89,7 +89,7 @@ class AddTermForm(ModelView):
     nro= fields.Char('Numero de cheque', size=20, states={
         'invisible' : ~Eval('cheque', [0])
     })
-    banco = fields.Many2One('bank', 'Banco',states={
+    bancos = fields.Many2One('sale.bank', 'Banco',states={
         'invisible' : ~Eval('cheque', [0])
     })
     titular = fields.Char('Titular de la cuenta',states={

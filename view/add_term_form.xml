@@ -19,8 +19,8 @@ The COPYRIGHT file at the top level of this repository contains the full copyrig
     <newline/>
     <label name="nro"/>
     <field name="nro"/>
-    <label name="banco"/>
-    <field name="banco"/>
+    <label name="bancos"/>
+    <field name="bancos"/>
     <label name="titular"/>
     <field name="titular"/>
     <label name="cuenta"/>
