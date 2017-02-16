@@ -565,12 +565,17 @@ class WizardAddTerm(Wizard):
         StatementLine = pool.get('account.statement.line')
         Date = pool.get('ir.date')
         valor_conciliar = Decimal(0.0)
+        move = None
         statements = Statement.search([
                 ('state', '=', 'draft'),
                 ], order=[('date', 'DESC')])
         statements_cheque = Statement.search([
                 ('state', '=', 'draft'),
                 ('tipo_pago', '=', 'cheque')
+                ], order=[('date', 'DESC')])
+        statements_tarjeta = Statement.search([
+                ('state', '=', 'draft'),
+                ('tipo_pago', '=', 'tarjeta')
                 ], order=[('date', 'DESC')])
 
         account = (sale.party.account_receivable
@@ -591,6 +596,17 @@ class WizardAddTerm(Wizard):
                 'origin': str(sale),
                 'description': str(sale.id),
             }])
+        if move:
+            pass
+        else:
+            if self.start.tarjeta:
+                move, = Move.create([{
+                    'period': Period.find(sale.company.id, date=sale.sale_date),
+                    'journal': 1,
+                    'date': sale.sale_date,
+                    'origin': str(sale),
+                    'description': str(sale.id),
+                }])
 
         postdated_lines = None
         if self.start.cheque:
@@ -680,6 +696,7 @@ class WizardAddTerm(Wizard):
                     'period': Period.find(sale.company.id, date=sale.sale_date),
                 })
                 m_tc = self.start.tarjeta
+                valor_conciliar_tarjeta = m_tc
                 postdated_lines = []
                 if self.start.no_tarjeta:
                     pass
@@ -853,8 +870,7 @@ class WizardAddTerm(Wizard):
                         cont += 1
                     term.lines = lines
                     term.save()
-
-        sale.payment_term = term
+            sale.payment_term = term
         sale.save()
         valor = m_e
         if valor_conciliar != Decimal(0.0):
@@ -868,6 +884,18 @@ class WizardAddTerm(Wizard):
                     sale=active_id
                     )
             payment_cheque.save()
+
+        if valor_conciliar_tarjeta != Decimal(0.0):
+            payment_tarjeta = StatementLine(
+                    statement=statements_tarjeta[0].id,
+                    date=Date.today(),
+                    amount=valor_conciliar_tarjeta,
+                    party=sale.party.id,
+                    account=account,
+                    description=sale.reference,
+                    sale=active_id
+                    )
+            payment_tarjeta.save()
 
         if valor != 0:
             payment = StatementLine(
