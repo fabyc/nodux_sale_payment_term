@@ -4,11 +4,11 @@ msgstr "Content-Type: text/plain; charset=utf-8\n"
 
 msgctxt "field:account.configuration,default_account_card:"
 msgid "Default Account Card"
-msgstr "Cuenta Cheques por defecto"
+msgstr "Cuenta Tarjeta por defecto"
 
 msgctxt "field:account.configuration,default_account_check:"
 msgid "Default Account Check"
-msgstr "Cuenta Tarjeta por defecto"
+msgstr "Cuenta Cheques por defecto"
 
 msgctxt "field:account.postdated,postdated_type:"
 msgid "Document Type"
@@ -18,7 +18,7 @@ msgctxt "field:account.statement,tipo_pago:"
 msgid "Forma de Pago"
 msgstr "Forma de pago"
 
-msgctxt "field:nodux_sale_payment_term.add_payment_term_form,banco:"
+msgctxt "field:nodux_sale_payment_term.add_payment_term_form,bancos:"
 msgid "Banco"
 msgstr "Banco"
 
@@ -99,14 +99,6 @@ msgctxt "field:sale.payment.form,amount:"
 msgid "Payment amount"
 msgstr "Cantidad a pagar"
 
-msgctxt "field:sale.payment.form,banco:"
-msgid "Banco"
-msgstr "Banco"
-
-msgctxt "field:sale.payment.form,banco_deposito:"
-msgid "Banco"
-msgstr "Banco"
-
 msgctxt "field:sale.payment.form,cambio_cliente:"
 msgid "SU CAMBIO"
 msgstr "SU CAMBIO"
@@ -159,14 +151,6 @@ msgctxt "field:sale.sale,acumulativo:"
 msgid "Plan acumulativo"
 msgstr "Plan acumulativo"
 
-msgctxt "field:sale.sale,banco:"
-msgid "Banco"
-msgstr "Banco"
-
-msgctxt "field:sale.sale,banco_deposito:"
-msgid "Banco"
-msgstr "Banco"
-
 msgctxt "field:sale.sale,cambio:"
 msgid "CAMBIO"
 msgstr "CAMBIO"
@@ -198,6 +182,10 @@ msgstr "No. de depósito"
 msgctxt "field:sale.sale,numero_tarjeta:"
 msgid "Numero de tarjeta"
 msgstr "No. de tarjeta"
+
+msgctxt "field:sale.sale,party2:"
+msgid "Client"
+msgstr "Cliente"
 
 msgctxt "field:sale.sale,recibido:"
 msgid "Valor recibido del cliente"
