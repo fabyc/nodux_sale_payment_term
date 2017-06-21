@@ -46,12 +46,18 @@ class AccountPostDateCheck(ModelSQL, ModelView):
         Voucher = pool.get('account.voucher')
         Sale = pool.get('sale.sale')
         Invoice = pool.get('account.invoice')
+        Module = pool.get('ir.module.module')
+        module_advanced = Module.search([('name', '=', 'nodux_sale_payment_advanced_payment'), ('state', '=', 'installed')])
 
         reconcile_lines = []
+        line_r = []
         sale = None
-        
+
         for line in self.lines:
+
             voucher = Voucher.search([('number', '=', line.name), ('voucher_type', '=', 'receipt')])
+            move = Move.search([('id', '=', line.reference)])
+
             if '-' in line.name:
                 pass
             else:
@@ -60,11 +66,18 @@ class AccountPostDateCheck(ModelSQL, ModelView):
             if voucher:
                 for v in voucher:
                     move = v.move
+
                 line_r = MoveLine.search([('account', '=', line.account.id), ('move', '=', move.id)])
+
             if sale:
                 for s in sale:
                     description = str(s.id)
                 line_r = MoveLine.search([('account', '=', line.account.id), ('description', '=', description)])
+
+            if module_advanced:
+                if move:
+                    for m in move:
+                        line_r = MoveLine.search([('account', '=', line.account.id), ('move', '=', m.id)])
 
             for line in line_r:
                 reconcile_lines.append(line)
